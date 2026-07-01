@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>🏃 Đường Đua Đối Xứng – 2 Người</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0a0f1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    #game-wrapper {
+      position: relative;
+      background: #111;
+      border: 3px solid #334;
+      border-radius: 16px;
+      box-shadow: 0 0 40px rgba(0, 180, 255, 0.3);
+    }
+    canvas {
+      display: block;
+      border-radius: 12px;
+    }
+    .ui-overlay {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-weight: bold;
+      font-size: 1.4rem;
+      text-shadow: 0 0 10px black;
+      pointer-events: none;
+      display: flex;
+      gap: 30px;
+      background: rgba(0,0,0,0.6);
+      padding: 6px 20px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+    }
+    .controls-hint {
+      position: absolute;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #ccc;
+      font-size: 0.85rem;
+      background: rgba(0,0,0,0.7);
+      padding: 6px 15px;
+      border-radius: 20px;
+      pointer-events: none;
+      display: flex;
+      gap: 25px;
+    }
+    .btn-restart {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: #f0d078;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 30px;
+      font-weight: 900;
+      font-size: 1.2rem;
+      color: #1a1a2e;
+      cursor: pointer;
+      letter-spacing: 1px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+      transition: transform 0.2s;
+      z-index: 20;
+    }
+    .btn-restart.show {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    @media (max-width: 700px) {
+      .ui-overlay { font-size: 1rem; gap: 15px; }
+      .controls-hint { font-size: 0.7rem; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <canvas id="gameCanvas"></canvas>
+    <div class="ui-overlay">
+      <span>🔵 P1: <span id="score1">0</span></span>
+      <span>🔴 P2: <span id="score2">0</span></span>
+    </div>
+    <div class="controls-hint">
+      <span>🔵 W / ↑</span>
+      <span>🔴 ↓ / S</span>
+    </div>
+    <button class="btn-restart" id="restartBtn">🔄 CHƠI LẠI</button>
+  </div>
+
+  <script>
+    (function() {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const wrapper = document.getElementById('game-wrapper');
+      const score1Span = document.getElementById('score1');
+      const score2Span = document.getElementById('score2');
+      const restartBtn = document.getElementById('restartBtn');
+
+      // ========== KÍCH THƯỚC ==========
+      function resizeCanvas() {
+        const maxW = Math.min(window.innerWidth - 20, 800);
+        const maxH = Math.min(window.innerHeight - 20, 600);
+        canvas.width = maxW;
+        canvas.height = maxH;
+        wrapper.style.width = maxW + 'px';
+        wrapper.style.height = maxH + 'px';
+      }
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      // ========== CÁC THÔNG SỐ GAME ==========
+      const GROUND1_Y = canvas.height * 0.3;   // đường trên
+      const GROUND2_Y = canvas.height * 0.7;   // đường dưới
+      const PLAYER_WIDTH = 28;
+      const PLAYER_HEIGHT = 32;
+      const OBSTACLE_WIDTH = 18;
+      const OBSTACLE_HEIGHT = 40;
+      const GRAVITY = 1400;    // pixel/s²
+      const JUMP_VEL = -520;   // player 1 (lên)
+      const JUMP_VEL2 = 520;   // player 2 (xuống)
+      const GAME_SPEED = 280;  // pixel/s (tốc độ cuộn)
+
+      // ========== TRẠNG THÁI ==========
+      let player1 = {
+        x: 120,
+        y: GROUND1_Y - PLAYER_HEIGHT,
+        vy: 0,
+        width: PLAYER_WIDTH,
+        height: PLAYER_HEIGHT,
+        grounded: true,
+        color: '#4da6ff',
+        jumpKey: 'KeyW',
+        altKey: 'ArrowUp'
+      };
+      let player2 = {
+        x: 120,
+        y: GROUND2_Y,
+        vy: 0,
+        width: PLAYER_WIDTH,
+        height: PLAYER_HEIGHT,
+        grounded: true,
+        color: '#ff6b6b',
+        jumpKey: 'ArrowDown',
+        altKey: 'KeyS'
+      };
+
+      let obstacles = [];
+      let gameOver = false;
+      let score = 0;
+      let obstacleTimer = 0;
+      const OBSTACLE_INTERVAL = 1.5; // giây
+
+      // ========== HÀM TIỆN ÍCH ==========
+      function resetGame() {
+        player1.y = GROUND1_Y - PLAYER_HEIGHT;
+        player1.vy = 0;
+        player1.grounded = true;
+        player2.y = GROUND2_Y;
+        player2.vy = 0;
+        player2.grounded = true;
+        obstacles = [];
+        gameOver = false;
+        score = 0;
+        obstacleTimer = 0;
+        restartBtn.classList.remove('show');
+        updateScoreDisplay();
+      }
+
+      function updateScoreDisplay() {
+        score1Span.textContent = Math.floor(score);
+        score2Span.textContent = Math.floor(score);
+      }
+
+      // ========== XỬ LÝ VA CHẠM ==========
+      function checkCollision(player, obs) {
+        return (
+          player.x < obs.x + obs.width &&
+          player.x + player.width > obs.x &&
+          player.y < obs.y + obs.height &&
+          player.y + player.height > obs.y
+        );
+      }
+
+      // ========== CẬP NHẬT ==========
+      function update(dt) {
+        if (gameOver) return;
+
+        // Cập nhật điểm
+        score += GAME_SPEED * dt / 10; // tăng điểm theo khoảng cách
+
+        // Cập nhật player 1 (trên, trọng lực xuống)
+        player1.vy += GRAVITY * dt;
+        player1.y += player1.vy * dt;
+        if (player1.y >= GROUND1_Y - PLAYER_HEIGHT) {
+          player1.y = GROUND1_Y - PLAYER_HEIGHT;
+          player1.vy = 0;
+          player1.grounded = true;
+        } else {
+          player1.grounded = false;
+        }
+
+        // Cập nhật player 2 (dưới, trọng lực lên)
+        player2.vy -= GRAVITY * dt;  // trọng lực ngược
+        player2.y += player2.vy * dt;
+        if (player2.y <= GROUND2_Y) {
+          player2.y = GROUND2_Y;
+          player2.vy = 0;
+          player2.grounded = true;
+        } else {
+          player2.grounded = false;
+        }
+
+        // Sinh chướng ngại vật
+        obstacleTimer += dt;
+        if (obstacleTimer >= OBSTACLE_INTERVAL) {
+          obstacleTimer = 0;
+          // Chướng ngại vật cho player 1 (trên mặt đất, player nhảy lên)
+          obstacles.push({
+            x: canvas.width,
+            y: GROUND1_Y - OBSTACLE_HEIGHT,
+            width: OBSTACLE_WIDTH,
+            height: OBSTACLE_HEIGHT,
+            player: 1
+          });
+          // Chướng ngại vật đối xứng cho player 2 (dưới mặt đất, player nhảy xuống)
+          obstacles.push({
+            x: canvas.width,
+            y: GROUND2_Y,
+            width: OBSTACLE_WIDTH,
+            height: OBSTACLE_HEIGHT,
+            player: 2
+          });
+        }
+
+        // Di chuyển chướng ngại vật
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const obs = obstacles[i];
+          obs.x -= GAME_SPEED * dt;
+          if (obs.x + obs.width < 0) {
+            obstacles.splice(i, 1);
+            continue;
+          }
+
+          // Va chạm
+          if (obs.player === 1 && checkCollision(player1, obs)) {
+            gameOver = true;
+            restartBtn.classList.add('show');
+          }
+          if (obs.player === 2 && checkCollision(player2, obs)) {
+            gameOver = true;
+            restartBtn.classList.add('show');
+          }
+        }
+
+        updateScoreDisplay();
+      }
+
+      // ========== VẼ ==========
+      function drawGround() {
+        // Đường trên
+        ctx.strokeStyle = '#5a7a5a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, GROUND1_Y);
+        ctx.lineTo(canvas.width, GROUND1_Y);
+        ctx.stroke();
+
+        // Đường dưới
+        ctx.beginPath();
+        ctx.moveTo(0, GROUND2_Y);
+        ctx.lineTo(canvas.width, GROUND2_Y);
+        ctx.stroke();
+
+        // Vạch kẻ đường
+        ctx.strokeStyle = '#3a5a3a';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < canvas.width; i += 40) {
+          const x = (i - (score * 10 % 40) + canvas.width) % canvas.width;
+          ctx.beginPath();
+          ctx.moveTo(x, GROUND1_Y - 2);
+          ctx.lineTo(x + 20, GROUND1_Y - 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x, GROUND2_Y + 2);
+          ctx.lineTo(x + 20, GROUND2_Y + 2);
+          ctx.stroke();
+        }
+      }
+
+      function drawPlayer(p) {
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 12;
+        ctx.fillRect(p.x, p.y, p.width, p.height);
+        // Mắt
+        ctx.fillStyle = 'white';
+        ctx.shadowBlur = 0;
+        ctx.fillRect(p.x + 6, p.y + 8, 6, 6);
+        ctx.fillRect(p.x + 16, p.y + 8, 6, 6);
+        ctx.fillStyle = '#111';
+        ctx.fillRect(p.x + 8, p.y + 10, 3, 3);
+        ctx.fillRect(p.x + 18, p.y + 10, 3, 3);
+      }
+
+      function drawObstacle(obs) {
+        const gradient = ctx.createLinearGradient(obs.x, obs.y, obs.x + obs.width, obs.y + obs.height);
+        gradient.addColorStop(0, '#8b5a2b');
+        gradient.addColorStop(1, '#4a2c0a');
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 10;
+        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+        ctx.shadowBlur = 0;
+        // Đinh
+        ctx.fillStyle = '#d4a843';
+        for (let i = 0; i < 3; i++) {
+          ctx.fillRect(obs.x + 3 + i * 5, obs.y - 4, 3, 8);
+          ctx.fillRect(obs.x + 3 + i * 5, obs.y + obs.height - 4, 3, 8);
+        }
+      }
+
+      function drawScene() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Nền gradient
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        bgGrad.addColorStop(0, '#0b1a30');
+        bgGrad.addColorStop(0.5, '#162845');
+        bgGrad.addColorStop(1, '#0b1a30');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        drawGround();
+
+        // Vẽ chướng ngại vật
+        for (const obs of obstacles) {
+          drawObstacle(obs);
+        }
+
+        // Vẽ người chơi
+        drawPlayer(player1);
+        drawPlayer(player2);
+
+        // Hiệu ứng game over
+        if (gameOver) {
+          ctx.globalAlpha = 0.7;
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 30px "Segoe UI"';
+          ctx.textAlign = 'center';
+          ctx.fillText('💥 HẾT!', canvas.width/2, canvas.height/2 - 20);
+        }
+      }
+
+      // ========== VÒNG LẶP ==========
+      let lastTime = performance.now();
+      function gameLoop(now) {
+        let dt = (now - lastTime) / 1000;
+        if (dt > 0.1) dt = 0.1; // tránh nhảy vọt
+        lastTime = now;
+
+        update(dt);
+        drawScene();
+        requestAnimationFrame(gameLoop);
+      }
+
+      // ========== ĐIỀU KHIỂN ==========
+      const keys = {};
+      window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        e.preventDefault();
+        if (gameOver) return;
+
+        // Player 1 nhảy (lên)
+        if ((e.code === player1.jumpKey || e.code === player1.altKey) && player1.grounded) {
+          player1.vy = JUMP_VEL;
+          player1.grounded = false;
+        }
+        // Player 2 nhảy (xuống)
+        if ((e.code === player2.jumpKey || e.code === player2.altKey) && player2.grounded) {
+          player2.vy = JUMP_VEL2;
+          player2.grounded = false;
+        }
+      });
+      window.addEventListener('keyup', e => {
+        keys[e.code] = false;
+        e.preventDefault();
+      });
+
+      // Hỗ trợ mobile: chạm vào nửa trên màn hình -> player1 nhảy, nửa dưới -> player2 nhảy
+      canvas.addEventListener('click', (e) => {
+        if (gameOver) return;
+        const rect = canvas.getBoundingClientRect();
+        const clickY = e.clientY - rect.top;
+        const midY = canvas.height / 2;
+        if (clickY < midY) {
+          // Player 1
+          if (player1.grounded) {
+            player1.vy = JUMP_VEL;
+            player1.grounded = false;
+          }
+        } else {
+          // Player 2
+          if (player2.grounded) {
+            player2.vy = JUMP_VEL2;
+            player2.grounded = false;
+          }
+        }
+      });
+
+      // Nút chơi lại
+      restartBtn.addEventListener('click', () => {
+        resetGame();
+        resizeCanvas(); // cập nhật lại vị trí đường nếu resize
+        player1.y = GROUND1_Y - PLAYER_HEIGHT;
+        player2.y = GROUND2_Y;
+      });
+
+      // Khi resize canvas, cập nhật vị trí đứng
+      window.addEventListener('resize', () => {
+        resizeCanvas();
+        // Điều chỉnh lại vị trí đứng cho player nếu đang trên mặt đất
+        if (player1.grounded) player1.y = GROUND1_Y - PLAYER_HEIGHT;
+        if (player2.grounded) player2.y = GROUND2_Y;
+      });
+
+      // Bắt đầu
+      resetGame();
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>
