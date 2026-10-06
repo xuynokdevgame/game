@@ -139,10 +139,13 @@ details summary{font-weight:700;cursor:pointer;min-height:44px;display:flex;alig
 /* ===== CONFIG ===== */
 const CONFIG = {
   MODEL: "gemini-3.7-flash",                       // model chính (đổi tại đây hoặc ở ô Model)
-  FALLBACKS: ["gemini-3.8-flash","gemini-flash-latest"], // dự phòng khi model chính lỗi/không có
+  // Model dự phòng: cũ hơn thì ít bị 503 hơn (3.7/3.8 mới ra nên hay quá tải)
+  FALLBACKS: ["gemini-3.6-flash","gemini-3.5-flash","gemini-3.8-flash","gemini-3.5-flash-lite"],
+  ROUND_WAITS: [8000,20000,40000],   // nghỉ giữa các vòng thử (ms) - Google khuyên giãn cách dài khi 503
+  TIMEOUT_MS: 100000, THINKING: "low", // thinking thấp = trả nhanh hơn, ít bị 503/timeout
   API_BASE: "https://generativelanguage.googleapis.com/v1beta/models/",
   RETRIES: 3,            // số lần thử mỗi model khi gặp 503/429/lỗi mạng
-  MAX_SIDE: 1280, JPEG_QUALITY: 0.85, MAX_IMAGES: 8,
+  MAX_SIDE: 1024, JPEG_QUALITY: 0.85, MAX_IMAGES: 8,
   KEY_STORE: "veo3_gemini_key", MODEL_STORE: "veo3_gemini_model"
 };
 const $ = id => document.getElementById(id);
@@ -186,44 +189,50 @@ function apiError(status, body, model){
   return e;
 }
 
-/* ===== GEMINI API (retry + fallback chống 503) ===== */
-async function once(key, model, parts, system){
+/* ===== GEMINI API (xoay vòng model + giãn cách retry chống 503) ===== */
+async function once(key, model, parts, system, think=true){
+  const gc={maxOutputTokens:12000};
+  if(think && CONFIG.THINKING) gc.thinkingConfig={thinkingLevel:CONFIG.THINKING};
+  const ctl=new AbortController(), tm=setTimeout(()=>ctl.abort(),CONFIG.TIMEOUT_MS);
   let res;
   try{
     res = await fetch(CONFIG.API_BASE+model+":generateContent",{
-      method:"POST", headers:{"Content-Type":"application/json","x-goog-api-key":key},
-      body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:"user",parts}],
-        generationConfig:{temperature:0.7,maxOutputTokens:16384}})
+      method:"POST", signal:ctl.signal, headers:{"Content-Type":"application/json","x-goog-api-key":key},
+      body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:"user",parts}],generationConfig:gc})
     });
-  }catch(e){ const x=new Error("Network error. Kiểm tra kết nối mạng."); x.code="net"; throw x; }
-  let body=null; try{body=await res.json();}catch(e){}
-  if(!res.ok) throw apiError(res.status, body, model);
+  }catch(e){ clearTimeout(tm); const x=new Error(e.name==="AbortError"?"Timeout: model phản hồi quá lâu.":"Network error. Kiểm tra kết nối mạng."); x.code=e.name==="AbortError"?"timeout":"net"; throw x; }
+  let body=null; try{body=await res.json();}catch(e){} clearTimeout(tm);
+  if(!res.ok){
+    if(think && res.status===400 && /think/i.test(JSON.stringify(body))) return once(key,model,parts,system,false); // model không nhận thinkingConfig
+    throw apiError(res.status, body, model);
+  }
   const c=body&&body.candidates&&body.candidates[0];
-  const txt=c&&c.content&&c.content.parts?c.content.parts.map(p=>p.text||"").join(""):"";
+  const txt=c&&c.content&&c.content.parts?c.content.parts.filter(p=>!p.thought).map(p=>p.text||"").join(""):"";
   if(!txt.trim()){
     const why=(body&&body.promptFeedback&&body.promptFeedback.blockReason)||(c&&c.finishReason)||"rỗng";
-    const x=new Error("Gemini không trả nội dung ("+why+")."); x.code="empty"; if(/SAFETY|BLOCK|PROHIBITED/i.test(why)){x.fatal=true;x.message+=" Ảnh/ý tưởng bị chặn, hãy đổi nội dung."} throw x;
+    const x=new Error("Gemini không trả nội dung ("+why+")."); x.code="empty";
+    if(/SAFETY|BLOCK|PROHIBITED/i.test(why)){x.fatal=true;x.message+=" Ảnh/ý tưởng bị chặn, hãy đổi nội dung.";} throw x;
   }
   return txt;
 }
 async function callGemini(key, parts, system, onStatus){
   const first=$("model").value.trim()||CONFIG.MODEL;
-  const models=[...new Set([first,...CONFIG.FALLBACKS])]; let last;
-  for(let mi=0; mi<models.length; mi++){
-    const m=models[mi];
-    for(let a=1; a<=CONFIG.RETRIES; a++){
+  const models=[...new Set([first,...CONFIG.FALLBACKS])], dead=new Set(); let last;
+  for(let round=0; round<=CONFIG.ROUND_WAITS.length; round++){
+    for(const m of models){
+      if(dead.has(m)) continue;
+      if(round||m!==models[0]) onStatus("Đang thử "+m+(round?" (vòng "+(round+1)+")":"")+"…");
       try{ return await once(key,m,parts,system); }
-      catch(e){
-        last=e; if(e.fatal) throw e; if(e.skip) break;
-        if(a<CONFIG.RETRIES){
-          const w=Math.round(2000*Math.pow(2,a-1)+Math.random()*800);
-          onStatus("Server bận ("+e.code+"), thử lại lần "+(a+1)+"/"+CONFIG.RETRIES+" sau "+Math.round(w/1000)+"s…"); await sleep(w);
-        }
+      catch(e){ last=e; if(e.fatal) throw e; if(e.skip) dead.add(m); }
+    }
+    if(dead.size>=models.length) break;
+    if(round<CONFIG.ROUND_WAITS.length){
+      for(let s=Math.round(CONFIG.ROUND_WAITS[round]/1000); s>0; s--){
+        onStatus("Google đang quá tải (503). Tự thử lại sau "+s+"s… (vòng "+(round+2)+"/"+(CONFIG.ROUND_WAITS.length+1)+")"); await sleep(1000);
       }
     }
-    if(mi<models.length-1) onStatus("Chuyển sang model dự phòng: "+models[mi+1]+"…");
   }
-  last.message+=" Đã thử tất cả model ("+models.join(", ")+"). Hãy chờ vài phút hoặc đổi ô Model.";
+  last.message+="\n\nĐã thử: "+models.join(", ")+" qua "+(CONFIG.ROUND_WAITS.length+1)+" vòng. Lỗi 503 là do máy chủ Google quá tải, không phải do key hay ảnh. Hãy chờ 1-2 phút rồi bấm lại, hoặc đổi ô Model sang gemini-3.6-flash.";
   throw last;
 }
 async function checkKey(key){
@@ -374,7 +383,7 @@ $("camIn").onchange=e=>{addFiles(e.target.files);e.target.value="";};
 $("vtype").onchange=()=>$("custom").classList.toggle("hidden",$("vtype").value!=="Custom");
 $("custom").classList.add("hidden");
 $("dlgMode").onchange=()=>{ $("dlgBox").style.display=radio("dm")==="Không thoại"?"none":"block"; };
-$("analyze").onclick=()=>run(false);
+$("analyze").onclick=()=>run(false); un
 $("regenBtn").onclick=()=>run(true);
 $("copyAll").onclick=()=>{ const t=document.createElement("textarea"); t.style.cssText="position:fixed;left:0;top:0;opacity:0;height:1px;width:1px"; t.value=Array.from(document.querySelectorAll("#outC textarea")).map(x=>x.value).join("\n\n---\n\n"); document.body.appendChild(t); copyText(t,$("copyAll"),"COPY ALL"); setTimeout(()=>t.remove(),2000); };
 $("copyAll").addEventListener("click",()=>{});
