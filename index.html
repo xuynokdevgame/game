@@ -1,1452 +1,389 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Veo 3 Prompt Generator — Gemini Image Analyst</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI VEO 3 PROMPT ANALYZER</title>
 <style>
-  :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --surface2: #1a1a26;
-    --border: #2a2a3a;
-    --text: #e8e8f0;
-    --text-dim: #8888a0;
-    --accent: #6c5ce7;
-    --accent2: #a29bfe;
-    --success: #00b894;
-    --error: #e17055;
-    --warning: #fdcb6e;
-    --radius: 12px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.5;
-    padding: 0 0 env(safe-area-inset-bottom) 0;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-  .header {
-    padding: 20px 16px 16px;
-    background: linear-gradient(180deg, #16162a 0%, var(--bg) 100%);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .header h1 {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.3px;
-    background: linear-gradient(135deg, var(--accent2), var(--accent));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  .header p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-  .container { padding: 16px; max-width: 600px; margin: 0 auto; }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 14px;
-  }
-  .card-title {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--accent2);
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .card-title .badge {
-    font-size: 10px;
-    background: var(--surface2);
-    color: var(--text-dim);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 500;
-  }
-  label { font-size: 13px; color: var(--text-dim); display: block; margin-bottom: 6px; font-weight: 500; }
-  input[type="password"], input[type="text"], textarea, select {
-    width: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-    font-size: 15px;
-    color: var(--text);
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.2s;
-    -webkit-appearance: none;
-    appearance: none;
-  }
-  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
-  textarea { resize: vertical; min-height: 70px; }
-  select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 36px;
-  }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 12px 18px;
-    border-radius: 8px;
-    border: none;
-    font-size: 14px;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.15s;
-    -webkit-appearance: none;
-    appearance: none;
-    line-height: 1;
-  }
-  .btn:active { transform: scale(0.97); }
-  .btn:disabled { opacity: 0.4; pointer-events: none; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:active { background: #5a4bd1; }
-  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
-  .btn-success { background: var(--success); color: #fff; }
-  .btn-danger { background: var(--error); color: #fff; }
-  .btn-warning { background: var(--warning); color: #1a1a2a; }
-  .btn-sm { padding: 8px 12px; font-size: 12px; }
-  .btn-block { width: 100%; }
-  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .btn-row .btn { flex: 1; min-width: 0; }
-  .status-box {
-    margin-top: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-size: 12px;
-    line-height: 1.6;
-    display: none;
-  }
-  .status-box.show { display: block; }
-  .status-box.ok { background: rgba(0,184,148,0.1); border: 1px solid rgba(0,184,148,0.3); color: var(--success); }
-  .status-box.err { background: rgba(225,112,85,0.1); border: 1px solid rgba(225,112,85,0.3); color: var(--error); }
-  .status-box.info { background: rgba(108,92,231,0.1); border: 1px solid rgba(108,92,231,0.3); color: var(--accent2); }
-  .status-box code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-size: 11px; word-break: break-all; }
-  .img-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-    gap: 8px;
-    margin-top: 10px;
-  }
-  .img-item {
-    position: relative;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    background: var(--surface2);
-  }
-  .img-item img {
-    width: 100%;
-    height: 80px;
-    object-fit: cover;
-    display: block;
-  }
-  .img-item .meta {
-    padding: 4px 6px;
-    font-size: 9px;
-    color: var(--text-dim);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .img-item .remove {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.7);
-    border: none;
-    color: #fff;
-    font-size: 12px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    -webkit-appearance: none;
-  }
-  .settings-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .settings-row > div { flex: 1; min-width: 100px; }
-  .toggle-group {
-    display: flex;
-    gap: 8px;
-    margin-top: 4px;
-  }
-  .toggle-btn {
-    flex: 1;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--surface2);
-    color: var(--text-dim);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    text-align: center;
-    -webkit-appearance: none;
-    transition: all 0.15s;
-  }
-  .toggle-btn.active {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-  }
-  .result-section {
-    display: none;
-    margin-bottom: 14px;
-  }
-  .result-section.show { display: block; }
-  .result-section .card { margin-bottom: 0; }
-  .result-content {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-    font-size: 13px;
-    line-height: 1.7;
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 400px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    color: var(--text);
-  }
-  .result-content.empty { color: var(--text-dim); font-style: italic; }
-  .spinner {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(255,255,255,0.2);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .warning-box {
-    background: rgba(253,203,110,0.08);
-    border: 1px solid rgba(253,203,110,0.25);
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 11px;
-    color: var(--warning);
-    line-height: 1.6;
-    margin-bottom: 14px;
-  }
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 10px 20px;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 500;
-    z-index: 999;
-    opacity: 0;
-    transition: all 0.3s;
-    pointer-events: none;
-    max-width: 90vw;
-    text-align: center;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-  }
-  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-  .toast.ok { border-color: var(--success); color: var(--success); }
-  .toast.err { border-color: var(--error); color: var(--error); }
-  .loading-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 12px;
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
-  }
-  .loading-overlay.show { display: flex; }
-  .loading-overlay .spinner { width: 32px; height: 32px; border-width: 3px; }
-  .loading-overlay p { font-size: 14px; color: var(--text-dim); }
-  .divider { height: 1px; background: var(--border); margin: 12px 0; }
-  .hint { font-size: 11px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
-  .footer {
-    text-align: center;
-    padding: 20px 16px 40px;
-    font-size: 11px;
-    color: var(--text-dim);
-    line-height: 1.8;
-  }
+/* ===== UI: STYLES ===== */
+:root{--bg:#eceff1;--card:#fff;--ink:#16222b;--mute:#5d6b76;--line:#d5dbe0;--acc:#0b6e78;--accd:#08545c;--ok:#1d8a4b;--err:#c23a2b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",Roboto,Arial,sans-serif;overflow-x:hidden}
+.wrap{max-width:680px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) 14px max(32px,env(safe-area-inset-bottom))}
+h1{margin:14px 4px 0;font:800 22px/1.15 Georgia,"Times New Roman",serif}
+.sub{color:var(--mute);margin:4px 4px 8px;font-size:14px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+h2{margin:0 0 10px;font-size:15px;font-weight:700}
+label.l{display:block;font-size:13px;font-weight:600;color:var(--mute);margin:10px 0 4px}
+input[type=password],input[type=text],textarea,select{width:100%;font:inherit;font-size:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fafbfc;color:var(--ink)}
+textarea{min-height:84px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1 1 140px}
+button{font:inherit;font-weight:700;font-size:15px;min-height:48px;padding:10px 14px;border:0;border-radius:12px;background:var(--acc);color:#fff;cursor:pointer}
+button:active{background:var(--accd)}button.alt{background:#e3e8ec;color:var(--ink)}
+button.big{width:100%;min-height:56px;font-size:17px;margin-top:10px}button:disabled{opacity:.5}
+.status{display:inline-block;margin-top:8px;font-size:14px;font-weight:600}
+.ok{color:var(--ok)}.bad{color:var(--err)}.idle{color:var(--mute)}
+.warn{font-size:12px;color:var(--mute);margin:8px 0 0}
+.drop{border:2px dashed var(--acc);border-radius:14px;padding:22px 10px;text-align:center;background:#f2f9fa;color:var(--accd);font-weight:700;cursor:pointer}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:10px}
+.th{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fafbfc;font-size:12px}
+.th img{width:100%;height:110px;object-fit:cover;display:block}.th div{padding:6px 8px;word-break:break-all}
+.th button{min-height:40px;width:100%;border-radius:0;background:#f3d6d2;color:#7d1f14;font-size:13px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opts label{display:flex;align-items:center;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:999px;font-weight:600;background:#fafbfc;min-height:44px;font-size:15px}
+.opts input{accent-color:var(--acc);width:18px;height:18px;margin:0}
+.opts label:has(input:checked){border-color:var(--acc);background:#e3f2f3}
+.chk{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px}.chk input{width:20px;height:20px;accent-color:var(--acc)}
+.loading{display:none;text-align:center;padding:18px;font-weight:700;color:var(--accd)}
+.spin{width:30px;height:30px;border:4px solid #cfe3e5;border-top-color:var(--acc);border-radius:50%;margin:0 auto 8px;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{display:none;background:#fbe7e4;border:1px solid #e9b4ac;color:#7d1f14;padding:12px;border-radius:10px;font-weight:600;white-space:pre-wrap}
+pre.out{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;font:14px/1.55 -apple-system,Arial,sans-serif}
+textarea.prompt{min-height:320px;font:14px/1.5 ui-monospace,Menlo,monospace}
+.vh{font-weight:700;margin:14px 0 6px;color:var(--accd)}
+details summary{font-weight:700;cursor:pointer;min-height:44px;display:flex;align-items:center}
+#results,.hidden{display:none}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
 </style>
 </head>
 <body>
+<div class="wrap">
+<h1>AI VEO 3 PROMPT ANALYZER</h1>
+<p class="sub">Gemini Vision → Veo 3 TikTok Ad Prompt Generator</p>
 
-<div class="header">
-  <h1>🎬 Veo 3 Prompt Generator</h1>
-  <p>Image → Gemini Analysis → Veo 3 Prompt</p>
+<!-- API AREA -->
+<section>
+  <h2>Gemini API Key</h2>
+  <input type="password" id="apiKey" placeholder="Gemini API Key" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <label class="l" for="model">Model (đổi được nếu Google đổi tên)</label>
+  <input type="text" id="model" autocapitalize="off" spellcheck="false">
+  <div class="row" style="margin-top:8px"><button id="saveKey">SAVE KEY</button><button id="clearKey" class="alt">CLEAR KEY</button></div>
+  <span id="apiStatus" class="status idle">● Chưa có API Key</span>
+  <p class="warn">Không sử dụng API key có quyền truy cập quan trọng trên thiết bị công cộng. Lấy key miễn phí tại aistudio.google.com. Tool tự thử lại khi gặp lỗi 503 và tự chuyển sang model dự phòng.</p>
+</section>
+
+<!-- UPLOAD -->
+<section>
+  <h2>UPLOAD IMAGE</h2>
+  <div class="drop" id="drop">Chạm để chọn ảnh từ Photos<br><small>JPG · PNG · WEBP</small></div>
+  <input type="file" id="fileIn" accept="image/*" multiple class="hidden">
+  <input type="file" id="camIn" accept="image/*" capture="environment" class="hidden">
+  <div class="row" style="margin-top:8px"><button id="addBtn">ADD IMAGE</button><button id="camBtn" class="alt">CAMERA</button></div>
+  <div class="thumbs" id="thumbs"></div>
+  <h2 style="margin-top:14px">Loại ảnh</h2>
+  <div class="opts" id="imgType"></div>
+</section>
+
+<!-- AD SETUP -->
+<section>
+  <h2>THÔNG TIN QUẢNG CÁO</h2>
+  <label class="l" for="pname">Tên sản phẩm / thương hiệu (nếu có)</label>
+  <input type="text" id="pname" placeholder="Ví dụ: Serum vitamin C ABC">
+  <label class="l" for="usp">Điểm bán hàng chính</label>
+  <textarea id="usp" placeholder="Ví dụ: thấm nhanh, không nhờn, dưỡng sáng da sau 2 tuần"></textarea>
+  <label class="l" for="vtype">VIDEO TYPE</label><select id="vtype"></select>
+  <textarea id="custom" class="hidden" placeholder="Describe your desired video…" style="margin-top:8px"></textarea>
+  <label class="l" for="hook">Kiểu hook (2 giây đầu)</label><select id="hook"></select>
+  <label class="l" for="cta">Lời kêu gọi (CTA)</label><select id="cta"></select>
+  <label class="l" for="idea">VIDEO IDEA</label>
+  <textarea id="idea" placeholder="Ví dụ: Cho cô gái trong ảnh quảng cáo sản phẩm này bằng phong cách TikTok tự nhiên."></textarea>
+</section>
+
+<!-- DIALOGUE -->
+<section>
+  <h2>THOẠI / ÂM THANH</h2>
+  <div class="opts" id="dlgMode"></div>
+  <div id="dlgBox">
+    <div class="row">
+      <div><label class="l" for="lang">Ngôn ngữ</label><select id="lang"></select></div>
+      <div><label class="l" for="voice">Giọng</label><select id="voice"></select></div>
+      <div><label class="l" for="accent">Vùng miền</label><select id="accent"></select></div>
+      <div><label class="l" for="tone">Giọng điệu</label><select id="tone"></select></div>
+    </div>
+    <label class="l" for="script">Thoại do bạn viết (để trống = AI tự viết)</label>
+    <textarea id="script" placeholder="Nhập lời thoại bạn muốn dùng nguyên văn…"></textarea>
+  </div>
+  <label class="chk"><input type="checkbox" id="notext" checked>Không có chữ/phụ đề trong video (khuyên dùng, thêm chữ bằng CapCut)</label>
+</section>
+
+<!-- OUTPUT SETTINGS -->
+<section>
+  <h2>CÀI ĐẶT PROMPT</h2>
+  <div class="row">
+    <div><label class="l" for="dur">VIDEO DURATION</label><select id="dur"></select></div>
+    <div><label class="l" for="ar">ASPECT RATIO</label><select id="ar"></select></div>
+    <div><label class="l" for="mode">PROMPT MODE</label><select id="mode"></select></div>
+    <div><label class="l" for="nvar">Số phiên bản</label><select id="nvar"></select></div>
+  </div>
+  <button id="analyze" class="big">ANALYZE IMAGE</button>
+</section>
+
+<div class="loading" id="loading"><div class="spin"></div><span id="loadMsg">Analyzing image…</span></div>
+<div class="err" id="error"></div>
+
+<!-- RESULTS -->
+<div id="results">
+  <section><h2>A. IMAGE ANALYSIS</h2><pre class="out" id="outA"></pre></section>
+  <section><h2>B. VIDEO STORYBOARD</h2><pre class="out" id="outB"></pre></section>
+  <section>
+    <h2>C. FINAL VEO 3 PROMPT</h2>
+    <div id="outC"></div>
+    <label class="l" for="tweak">Muốn chỉnh gì? (ví dụ: hook mạnh hơn, đổi bối cảnh sang quán cafe)</label>
+    <textarea id="tweak"></textarea>
+    <div class="row" style="margin-top:8px"><button id="copyAll">COPY ALL</button><button id="regenBtn" class="alt">REGENERATE PROMPT</button></div>
+  </section>
 </div>
-
-<div class="container">
-
-  <!-- WARNING -->
-  <div class="warning-box">
-    ⚠️ <strong>API Key Security:</strong> API key is exposed to the client/browser.
-    Do not use a sensitive production key in a public deployment.
-    Requests go directly from your browser to Google's Gemini API.
-  </div>
-
-  <!-- ===== API CONFIG ===== -->
-  <div class="card">
-    <div class="card-title">🔑 Gemini API Key</div>
-    <label for="apiKeyInput">API Key</label>
-    <input type="password" id="apiKeyInput" placeholder="AIza..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-    <div class="btn-row" style="margin-top:10px;">
-      <button class="btn btn-outline btn-sm" id="btnPasteKey">📋 Paste</button>
-      <button class="btn btn-success btn-sm" id="btnSaveKey">💾 Save</button>
-      <button class="btn btn-danger btn-sm" id="btnClearKey">🗑️ Clear</button>
-    </div>
-    <div style="margin-top:10px;">
-      <button class="btn btn-primary btn-sm btn-block" id="btnTestApi">🔌 Test API</button>
-    </div>
-    <div class="status-box" id="apiStatusBox"></div>
-  </div>
-
-  <!-- ===== MODEL SELECT ===== -->
-  <div class="card">
-    <div class="card-title">🧠 Model</div>
-    <label for="modelSelect">Active Model</label>
-    <select id="modelSelect">
-      <option value="gemini-3.8-flash">Gemini 3.8 Flash (default)</option>
-      <option value="gemini-3.7-flash">Gemini 3.7 Flash (fallback)</option>
-    </select>
-    <div class="hint">Requests will use the exact model ID selected above.</div>
-  </div>
-
-  <!-- ===== IMAGE UPLOAD ===== -->
-  <div class="card">
-    <div class="card-title">📸 Reference Images <span class="badge" id="imgCountBadge">0</span></div>
-    <input type="file" id="fileInput" accept="image/*" capture="environment" multiple style="display:none;">
-    <button class="btn btn-outline btn-block" id="btnPickImages">📁 Choose Images / Take Photo</button>
-    <div class="img-grid" id="imgGrid"></div>
-    <div class="hint" id="imgHint">No images selected. Analyze requires at least one image.</div>
-  </div>
-
-  <!-- ===== VIDEO SETTINGS ===== -->
-  <div class="card">
-    <div class="card-title">⚙️ Video Settings</div>
-    <div class="settings-row">
-      <div>
-        <label for="durationSelect">Duration</label>
-        <select id="durationSelect">
-          <option value="5">5 seconds</option>
-          <option value="8" selected>8 seconds</option>
-          <option value="10">10 seconds</option>
-          <option value="15">15 seconds</option>
-        </select>
-      </div>
-      <div>
-        <label for="aspectSelect">Aspect Ratio</label>
-        <select id="aspectSelect">
-          <option value="9:16" selected>9:16 (Vertical)</option>
-          <option value="16:9">16:9 (Horizontal)</option>
-          <option value="1:1">1:1 (Square)</option>
-        </select>
-      </div>
-    </div>
-    <div style="margin-top:12px;">
-      <label for="videoTypeSelect">Video Type</label>
-      <select id="videoTypeSelect">
-        <option value="Product Advertisement">Product Advertisement</option>
-        <option value="Fashion Advertisement">Fashion Advertisement</option>
-        <option value="TikTok UGC">TikTok UGC</option>
-        <option value="Lifestyle">Lifestyle</option>
-        <option value="Beauty">Beauty</option>
-        <option value="Cinematic">Cinematic</option>
-        <option value="Custom">Custom</option>
-      </select>
-    </div>
-  </div>
-
-  <!-- ===== VIDEO IDEA ===== -->
-  <div class="card">
-    <div class="card-title">💡 Video Idea</div>
-    <textarea id="videoIdeaInput" placeholder="Ví dụ: Cho người mẫu giới thiệu chiếc váy này theo phong cách TikTok tự nhiên, quay dọc, ánh sáng ấm..."></textarea>
-    <div class="hint">This text will be sent directly into the Gemini prompt.</div>
-  </div>
-
-  <!-- ===== DIALOGUE ===== -->
-  <div class="card">
-    <div class="card-title">💬 Dialogue</div>
-    <div class="toggle-group">
-      <button class="toggle-btn active" id="btnDialogueOff" data-val="off">WITHOUT DIALOGUE</button>
-      <button class="toggle-btn" id="btnDialogueOn" data-val="on">WITH DIALOGUE</button>
-    </div>
-    <div id="dialogueWrapper" style="display:none; margin-top:12px;">
-      <label for="dialogueInput">Dialogue Script</label>
-      <textarea id="dialogueInput" placeholder="Ví dụ: Chiếc váy này mặc lên dáng cực kỳ đẹp, chất liệu mềm mại và thoải mái."></textarea>
-    </div>
-  </div>
-
-  <!-- ===== ANALYZE ===== -->
-  <div class="card">
-    <button class="btn btn-primary btn-block" id="btnAnalyze" style="padding:16px; font-size:16px;">
-      🔍 Analyze Images & Generate Veo Prompt
-    </button>
-    <div class="status-box" id="analyzeStatusBox"></div>
-  </div>
-
-  <!-- ===== RESULTS ===== -->
-  <div class="result-section" id="resultSection">
-    <div class="card">
-      <div class="card-title">📊 Image Analysis</div>
-      <div class="result-content" id="resultAnalysis">—</div>
-    </div>
-  </div>
-
-  <div class="result-section" id="storyboardSection">
-    <div class="card">
-      <div class="card-title">🎞️ Storyboard</div>
-      <div class="result-content" id="resultStoryboard">—</div>
-    </div>
-  </div>
-
-  <div class="result-section" id="promptSection">
-    <div class="card">
-      <div class="card-title">🎬 Final Veo 3 Prompt</div>
-      <textarea id="resultPrompt" rows="12" placeholder="Final prompt will appear here. You can edit it before copying."></textarea>
-      <div class="btn-row" style="margin-top:10px;">
-        <button class="btn btn-success btn-sm" id="btnCopyPrompt">📋 Copy Prompt</button>
-        <button class="btn btn-warning btn-sm" id="btnRegenerate">🔄 Regenerate</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="footer">
-    Built with real Gemini API · No mock · No fake<br>
-    Model: <code id="footerModel">gemini-3.8-flash</code>
-  </div>
-
 </div>
-
-<!-- LOADING OVERLAY -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="spinner"></div>
-  <p id="loadingText">Preparing...</p>
-</div>
-
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
 
 <script>
-(function() {
-  'use strict';
+/* ===== CONFIG ===== */
+const CONFIG = {
+  MODEL: "gemini-3.7-flash",                       // model chính (đổi tại đây hoặc ở ô Model)
+  FALLBACKS: ["gemini-3.8-flash","gemini-flash-latest"], // dự phòng khi model chính lỗi/không có
+  API_BASE: "https://generativelanguage.googleapis.com/v1beta/models/",
+  RETRIES: 3,            // số lần thử mỗi model khi gặp 503/429/lỗi mạng
+  MAX_SIDE: 1280, JPEG_QUALITY: 0.85, MAX_IMAGES: 8,
+  KEY_STORE: "veo3_gemini_key", MODEL_STORE: "veo3_gemini_model"
+};
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+let images = [], loadTimer = null, lastPrompt = "";
 
-  // ============================================================
-  // CONFIG
-  // ============================================================
-  const CONFIG = {
-    DEFAULT_MODEL: 'gemini-3.8-flash',
-    FALLBACK_MODEL: 'gemini-3.7-flash',
-    API_BASE_URL: 'https://generativelanguage.googleapis.com',
-    MAX_IMAGES: 5,
-    MAX_IMAGE_DIMENSION: 1600,
-    IMAGE_QUALITY: 0.85,
-    STORAGE_KEY: 'gemini_api_key'
-  };
+/* ===== UI: OPTION LISTS ===== */
+const OPT = {
+  vtype:["TikTok Video","UGC Advertisement","Product Advertisement","Problem → Solution","Unboxing","Before / After","Review / Testimonial","Tutorial / Demo","POV","Storytelling","Fashion Video","Beauty Video","Lifestyle Video","Dancing Video","Cinematic Video","Custom"],
+  hook:["AI tự chọn","Câu hỏi gây tò mò","Nêu vấn đề (pain point)","Hình ảnh gây sốc/bất ngờ","Ưu đãi / giảm giá","Bí mật / mẹo ít người biết","Phản ứng cảm xúc"],
+  cta:["Không CTA","Bấm vào giỏ hàng / link","Mua ngay hôm nay","Thử ngay","Theo dõi để xem thêm"],
+  lang:["Tiếng Việt","English"], voice:["Nữ","Nam"], accent:["Giọng chuẩn","Miền Bắc","Miền Nam","Miền Trung"],
+  tone:["Thân thiện tự nhiên","Hào hứng năng lượng","Nhẹ nhàng dịu dàng","Chuyên gia tin cậy","Hài hước"],
+  dur:["4s","6s","8s","15s","24s","30s"], ar:["9:16","16:9","1:1"], mode:["FAST","STANDARD","ULTRA"], nvar:["1","2","3"]
+};
+const DEF={dur:"8s",ar:"9:16",mode:"ULTRA",nvar:"1"};
+Object.keys(OPT).forEach(k=>{ $(k).innerHTML=OPT[k].map(v=>`<option${DEF[k]===v?" selected":""}>${v}</option>`).join(""); });
+function chips(box,name,list,def){ $(box).innerHTML=list.map(v=>`<label><input type="radio" name="${name}" value="${v}"${v===def?" checked":""}>${v}</label>`).join(""); }
+chips("imgType","it",["Product Image","Portrait","Full Body","Multiple Images","Auto Detect"],"Auto Detect");
+chips("dlgMode","dm",["Có thoại","Voice-over","Không thoại","AI tự chọn"],"Có thoại");
+const radio = n => document.querySelector(`input[name="${n}"]:checked`).value;
 
-  // ============================================================
-  // STATE
-  // ============================================================
-  let state = {
-    images: [],           // { id, file, base64, mimeType, name, size, previewUrl }
-    dialogueMode: 'off',  // 'on' | 'off'
-    isAnalyzing: false,
-    lastAnalysis: null,
-    lastStoryboard: null,
-    lastPrompt: null
-  };
+/* ===== LOCAL STORAGE ===== */
+function lsGet(k){ try{return localStorage.getItem(k)||"";}catch(e){return "";} }
+function lsSet(k,v){ try{localStorage.setItem(k,v);return true;}catch(e){return false;} }
+function lsDel(k){ try{localStorage.removeItem(k);}catch(e){} }
 
-  // ============================================================
-  // DOM REFS
-  // ============================================================
-  const $ = id => document.getElementById(id);
-  const apiKeyInput = $('apiKeyInput');
-  const btnPasteKey = $('btnPasteKey');
-  const btnSaveKey = $('btnSaveKey');
-  const btnClearKey = $('btnClearKey');
-  const btnTestApi = $('btnTestApi');
-  const apiStatusBox = $('apiStatusBox');
-  const modelSelect = $('modelSelect');
-  const footerModel = $('footerModel');
-  const fileInput = $('fileInput');
-  const btnPickImages = $('btnPickImages');
-  const imgGrid = $('imgGrid');
-  const imgHint = $('imgHint');
-  const imgCountBadge = $('imgCountBadge');
-  const durationSelect = $('durationSelect');
-  const aspectSelect = $('aspectSelect');
-  const videoTypeSelect = $('videoTypeSelect');
-  const videoIdeaInput = $('videoIdeaInput');
-  const btnDialogueOff = $('btnDialogueOff');
-  const btnDialogueOn = $('btnDialogueOn');
-  const dialogueWrapper = $('dialogueWrapper');
-  const dialogueInput = $('dialogueInput');
-  const btnAnalyze = $('btnAnalyze');
-  const analyzeStatusBox = $('analyzeStatusBox');
-  const resultSection = $('resultSection');
-  const resultAnalysis = $('resultAnalysis');
-  const storyboardSection = $('storyboardSection');
-  const resultStoryboard = $('resultStoryboard');
-  const promptSection = $('promptSection');
-  const resultPrompt = $('resultPrompt');
-  const btnCopyPrompt = $('btnCopyPrompt');
-  const btnRegenerate = $('btnRegenerate');
-  const loadingOverlay = $('loadingOverlay');
-  const loadingText = $('loadingText');
-  const toast = $('toast');
+/* ===== ERROR HANDLING ===== */
+function showError(m){ const e=$("error"); e.textContent=m; e.style.display="block"; e.scrollIntoView({behavior:"smooth",block:"center"}); }
+function clearError(){ $("error").style.display="none"; }
+function setApi(c,t){ const s=$("apiStatus"); s.className="status "+c; s.textContent=t; }
+function apiError(status, body, model){
+  const m=(body&&body.error&&body.error.message)||""; const e=new Error(); e.code=status;
+  if(status===400&&/api key/i.test(m)){ e.message="Invalid API Key. Kiểm tra lại key rồi lưu lại."; e.fatal=true; }
+  else if(status===401||status===403){ e.message="Invalid API Key hoặc key không có quyền dùng model này. "+m; e.fatal=true; }
+  else if(status===404){ e.message="Model unavailable: '"+model+"' không tồn tại hoặc không có cho key này."; e.skip=true; }
+  else if(status===429){ e.message="Quota exceeded: hết hạn mức tạm thời của '"+model+"'."; }
+  else if(status>=500){ e.message="Model unavailable: server Gemini bận ("+status+")."; }
+  else if(status===400&&/image|mime|unsupported/i.test(m)){ e.message="Unsupported image. Thử ảnh JPG/PNG/WEBP khác. "+m; e.fatal=true; }
+  else { e.message="Lỗi API "+status+": "+m; e.fatal=true; }
+  return e;
+}
 
-  // ============================================================
-  // UTILITIES
-  // ============================================================
-  function showToast(msg, type) {
-    toast.textContent = msg;
-    toast.className = 'toast show' + (type ? ' ' + type : '');
-    clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => {
-      toast.className = 'toast';
-    }, 3000);
-  }
-
-  function showLoading(text) {
-    loadingText.textContent = text || 'Processing...';
-    loadingOverlay.classList.add('show');
-  }
-
-  function hideLoading() {
-    loadingOverlay.classList.remove('show');
-  }
-
-  function setStatus(el, type, html) {
-    el.className = 'status-box show ' + type;
-    el.innerHTML = html;
-  }
-
-  function clearStatus(el) {
-    el.className = 'status-box';
-    el.innerHTML = '';
-  }
-
-  function formatBytes(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1048576).toFixed(1) + ' MB';
-  }
-
-  function uid() {
-    return 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-  }
-
-  // ============================================================
-  // LOCAL STORAGE
-  // ============================================================
-  function loadApiKey() {
-    try {
-      const saved = localStorage.getItem(CONFIG.STORAGE_KEY);
-      if (saved) {
-        apiKeyInput.value = saved;
-      }
-    } catch (e) {
-      // localStorage may be unavailable in some private modes
-    }
-  }
-
-  function saveApiKeyToStorage() {
-    const key = apiKeyInput.value.trim();
-    if (!key) {
-      showToast('Please enter an API key first.', 'err');
-      return false;
-    }
-    try {
-      localStorage.setItem(CONFIG.STORAGE_KEY, key);
-      showToast('API key saved.', 'ok');
-      return true;
-    } catch (e) {
-      showToast('Could not save key: ' + e.message, 'err');
-      return false;
-    }
-  }
-
-  function clearApiKeyFromStorage() {
-    try {
-      localStorage.removeItem(CONFIG.STORAGE_KEY);
-    } catch (e) { /* ignore */ }
-    apiKeyInput.value = '';
-    clearStatus(apiStatusBox);
-    showToast('API key cleared.', 'ok');
-  }
-
-  // ============================================================
-  // MODEL
-  // ============================================================
-  function getCurrentModel() {
-    const val = modelSelect.value;
-    // Guard: only allow configured models
-    if (val === CONFIG.DEFAULT_MODEL || val === CONFIG.FALLBACK_MODEL) {
-      return val;
-    }
-    return CONFIG.DEFAULT_MODEL;
-  }
-
-  function updateFooterModel() {
-    footerModel.textContent = getCurrentModel();
-  }
-
-  // ============================================================
-  // IMAGE HANDLING
-  // ============================================================
-  function readFileAsDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('Failed to read file: ' + file.name));
-      reader.readAsDataURL(file);
+/* ===== GEMINI API (retry + fallback chống 503) ===== */
+async function once(key, model, parts, system){
+  let res;
+  try{
+    res = await fetch(CONFIG.API_BASE+model+":generateContent",{
+      method:"POST", headers:{"Content-Type":"application/json","x-goog-api-key":key},
+      body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:"user",parts}],
+        generationConfig:{temperature:0.7,maxOutputTokens:16384}})
     });
+  }catch(e){ const x=new Error("Network error. Kiểm tra kết nối mạng."); x.code="net"; throw x; }
+  let body=null; try{body=await res.json();}catch(e){}
+  if(!res.ok) throw apiError(res.status, body, model);
+  const c=body&&body.candidates&&body.candidates[0];
+  const txt=c&&c.content&&c.content.parts?c.content.parts.map(p=>p.text||"").join(""):"";
+  if(!txt.trim()){
+    const why=(body&&body.promptFeedback&&body.promptFeedback.blockReason)||(c&&c.finishReason)||"rỗng";
+    const x=new Error("Gemini không trả nội dung ("+why+")."); x.code="empty"; if(/SAFETY|BLOCK|PROHIBITED/i.test(why)){x.fatal=true;x.message+=" Ảnh/ý tưởng bị chặn, hãy đổi nội dung."} throw x;
   }
-
-  function loadImage(src) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('Failed to load image.'));
-      img.src = src;
-    });
-  }
-
-  async function processImageFile(file) {
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'];
-    let mimeType = file.type || 'image/jpeg';
-
-    // Normalize HEIC/HEIF which Safari may report
-    if (mimeType === 'image/heic' || mimeType === 'image/heif') {
-      // Try to convert via canvas; if the browser cannot decode, we fall back
-      mimeType = 'image/jpeg';
-    }
-
-    if (!validTypes.includes(mimeType) && !mimeType.startsWith('image/')) {
-      throw new Error('Unsupported file type: ' + (file.type || 'unknown') + ' (' + file.name + ')');
-    }
-
-    const dataUrl = await readFileAsDataURL(file);
-    const img = await loadImage(dataUrl);
-
-    // Resize if needed
-    let { width, height } = img;
-    const maxDim = CONFIG.MAX_IMAGE_DIMENSION;
-    let needsResize = false;
-
-    if (width > maxDim || height > maxDim) {
-      needsResize = true;
-      const ratio = Math.min(maxDim / width, maxDim / height);
-      width = Math.round(width * ratio);
-      height = Math.round(height * ratio);
-    }
-
-    let finalDataUrl;
-    let finalMime;
-
-    if (needsResize) {
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      // White background for images with transparency
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
-      finalMime = 'image/jpeg';
-      finalDataUrl = canvas.toDataURL(finalMime, CONFIG.IMAGE_QUALITY);
-    } else {
-      // Keep original data URL, but normalize mime
-      finalDataUrl = dataUrl;
-      finalMime = mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
-      // If original was png, keep png; otherwise convert to jpeg for size
-      if (mimeType === 'image/png' || mimeType === 'image/webp') {
-        finalMime = mimeType;
-        finalDataUrl = dataUrl;
-      } else {
-        // Convert to jpeg for consistency
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
-        finalMime = 'image/jpeg';
-        finalDataUrl = canvas.toDataURL(finalMime, CONFIG.IMAGE_QUALITY);
-      }
-    }
-
-    // Strip data URL prefix to get pure base64
-    const base64 = finalDataUrl.split(',')[1];
-
-    return {
-      id: uid(),
-      name: file.name || ('image_' + Date.now() + '.jpg'),
-      size: file.size,
-      mimeType: finalMime,
-      base64: base64,
-      previewUrl: finalDataUrl
-    };
-  }
-
-  async function addImages(files) {
-    const remaining = CONFIG.MAX_IMAGES - state.images.length;
-    if (remaining <= 0) {
-      showToast('Maximum ' + CONFIG.MAX_IMAGES + ' images allowed.', 'err');
-      return;
-    }
-
-    const toAdd = Array.from(files).slice(0, remaining);
-    if (toAdd.length < files.length) {
-      showToast('Only first ' + remaining + ' image(s) added (max ' + CONFIG.MAX_IMAGES + ').', 'err');
-    }
-
-    for (const file of toAdd) {
-      try {
-        const processed = await processImageFile(file);
-        state.images.push(processed);
-      } catch (err) {
-        showToast(err.message, 'err');
-      }
-    }
-
-    renderImages();
-  }
-
-  function removeImage(id) {
-    state.images = state.images.filter(img => img.id !== id);
-    renderImages();
-    showToast('Image removed.', 'ok');
-  }
-
-  function renderImages() {
-    const count = state.images.length;
-    imgCountBadge.textContent = count;
-    imgHint.textContent = count === 0
-      ? 'No images selected. Analyze requires at least one image.'
-      : count + ' image(s) ready to send to Gemini API.';
-
-    if (count === 0) {
-      imgGrid.innerHTML = '';
-      return;
-    }
-
-    imgGrid.innerHTML = state.images.map(img => `
-      <div class="img-item" data-id="${img.id}">
-        <img src="${img.previewUrl}" alt="${escapeHtml(img.name)}">
-        <button class="remove" data-remove="${img.id}" aria-label="Remove">✕</button>
-        <div class="meta" title="${escapeHtml(img.name)}">${escapeHtml(img.name)}<br>${formatBytes(img.size)} · ${img.mimeType}</div>
-      </div>
-    `).join('');
-
-    // Attach remove handlers
-    imgGrid.querySelectorAll('[data-remove]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        removeImage(btn.getAttribute('data-remove'));
-      });
-    });
-  }
-
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  // ============================================================
-  // GEMINI API
-  // ============================================================
-  async function callGemini(parts, modelOverride) {
-    const apiKey = apiKeyInput.value.trim();
-    if (!apiKey) {
-      throw new Error('Please enter your Gemini API key.');
-    }
-
-    const model = modelOverride || getCurrentModel();
-    const url = CONFIG.API_BASE_URL + '/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey);
-
-    const body = {
-      contents: [
-        {
-          parts: parts
+  return txt;
+}
+async function callGemini(key, parts, system, onStatus){
+  const first=$("model").value.trim()||CONFIG.MODEL;
+  const models=[...new Set([first,...CONFIG.FALLBACKS])]; let last;
+  for(let mi=0; mi<models.length; mi++){
+    const m=models[mi];
+    for(let a=1; a<=CONFIG.RETRIES; a++){
+      try{ return await once(key,m,parts,system); }
+      catch(e){
+        last=e; if(e.fatal) throw e; if(e.skip) break;
+        if(a<CONFIG.RETRIES){
+          const w=Math.round(2000*Math.pow(2,a-1)+Math.random()*800);
+          onStatus("Server bận ("+e.code+"), thử lại lần "+(a+1)+"/"+CONFIG.RETRIES+" sau "+Math.round(w/1000)+"s…"); await sleep(w);
         }
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 8192,
-        topP: 0.95
-      },
-      safetySettings: [
-        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' }
-      ]
-    };
-
-    let response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-    } catch (networkErr) {
-      throw new Error('Network error: ' + networkErr.message + '. This may be a CORS issue or a connectivity problem. If you opened this file via file://, try serving it over HTTPS instead.');
-    }
-
-    const httpStatus = response.status;
-    let json;
-    try {
-      json = await response.json();
-    } catch (parseErr) {
-      throw new Error('HTTP ' + httpStatus + ' — Failed to parse JSON response. The API returned non-JSON content.');
-    }
-
-    if (!response.ok) {
-      let errMsg = 'HTTP ' + httpStatus;
-      if (json && json.error) {
-        errMsg += ' ' + (json.error.status || '') + ': ' + (json.error.message || JSON.stringify(json.error));
-      } else {
-        errMsg += ' — ' + JSON.stringify(json).slice(0, 300);
       }
-      // Special handling for common errors
-      if (httpStatus === 404) {
-        errMsg += ' — Model "' + model + '" may not be available for your API key or region.';
-      }
-      if (httpStatus === 400 && json && json.error && json.error.message && json.error.message.includes('API key')) {
-        errMsg += ' — Check that your API key is valid and has the Generative Language API enabled.';
-      }
-      throw new Error(errMsg);
     }
-
-    // Parse response safely
-    if (!json.candidates || !Array.isArray(json.candidates) || json.candidates.length === 0) {
-      // Check for promptFeedback block
-      if (json.promptFeedback && json.promptFeedback.blockReason) {
-        throw new Error('Request blocked by Gemini: ' + json.promptFeedback.blockReason +
-          (json.promptFeedback.blockReasonMessage ? ' — ' + json.promptFeedback.blockReasonMessage : ''));
-      }
-      throw new Error('Gemini returned no candidates. Response: ' + JSON.stringify(json).slice(0, 300));
-    }
-
-    const candidate = json.candidates[0];
-
-    if (candidate.finishReason && candidate.finishReason !== 'STOP' && candidate.finishReason !== 'MAX_TOKENS') {
-      // Still try to get text, but warn
-      console.warn('Gemini finishReason:', candidate.finishReason);
-    }
-
-    if (!candidate.content || !Array.isArray(candidate.content.parts)) {
-      throw new Error('Gemini response missing content.parts. finishReason: ' + (candidate.finishReason || 'unknown'));
-    }
-
-    const textParts = candidate.content.parts
-      .filter(p => typeof p.text === 'string')
-      .map(p => p.text);
-
-    if (textParts.length === 0) {
-      throw new Error('Gemini returned no text parts. finishReason: ' + (candidate.finishReason || 'unknown'));
-    }
-
-    return textParts.join('\n');
+    if(mi<models.length-1) onStatus("Chuyển sang model dự phòng: "+models[mi+1]+"…");
   }
+  last.message+=" Đã thử tất cả model ("+models.join(", ")+"). Hãy chờ vài phút hoặc đổi ô Model.";
+  throw last;
+}
+async function checkKey(key){
+  const m=$("model").value.trim()||CONFIG.MODEL;
+  try{
+    const r=await fetch(CONFIG.API_BASE+m,{headers:{"x-goog-api-key":key}});
+    if(r.ok){ setApi("ok","● API Connected"); return; }
+    let b=null; try{b=await r.json();}catch(e){}
+    const e=apiError(r.status,b,m);
+    if(e.fatal){ setApi("bad","● API Error"); showError(e.message); }
+    else { setApi("ok","● API Connected (model/server tạm lỗi: "+r.status+", tool sẽ tự dự phòng)"); }
+  }catch(e){ setApi("bad","● API Error"); showError("Network error. Không kết nối được Gemini."); }
+}
 
-  // ============================================================
-  // TEST API
-  // ============================================================
-  async function testApi() {
-    const apiKey = apiKeyInput.value.trim();
-    if (!apiKey) {
-      setStatus(apiStatusBox, 'err', '❌ <strong>ERROR</strong><br>Please enter your Gemini API key.');
-      return;
-    }
-
-    const model = getCurrentModel();
-    setStatus(apiStatusBox, 'info', '⏳ Testing <code>' + model + '</code>...');
-    btnTestApi.disabled = true;
-
-    try {
-      const text = await callGemini([{ text: 'Reply with exactly: OK' }], model);
-      setStatus(apiStatusBox, 'ok',
-        '✅ <strong>API STATUS: CONNECTED</strong><br>' +
-        'Model: <code>' + model + '</code><br>' +
-        'Response: <code>' + escapeHtml(text.trim().slice(0, 80)) + '</code>'
-      );
-    } catch (err) {
-      setStatus(apiStatusBox, 'err',
-        '❌ <strong>API STATUS: ERROR</strong><br>' +
-        'Model: <code>' + model + '</code><br>' +
-        '<span style="word-break:break-word;">' + escapeHtml(err.message) + '</span>'
-      );
-    } finally {
-      btnTestApi.disabled = false;
-    }
+/* ===== IMAGE PROCESSING ===== */
+const fmtSize=b=>b>1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(b/1024))+" KB";
+function loadImg(f){ return new Promise((ok,no)=>{ const u=URL.createObjectURL(f),im=new Image();
+  im.onload=()=>{URL.revokeObjectURL(u);ok(im)}; im.onerror=()=>{URL.revokeObjectURL(u);no(new Error("Unsupported image: không đọc được '"+f.name+"'."))}; im.src=u; }); }
+async function processFile(f){
+  const im=await loadImg(f); let w=im.naturalWidth,h=im.naturalHeight;
+  const k=Math.min(1,CONFIG.MAX_SIDE/Math.max(w,h)); w=Math.round(w*k); h=Math.round(h*k);
+  const cv=document.createElement("canvas"); cv.width=w; cv.height=h; const cx=cv.getContext("2d");
+  cx.fillStyle="#fff"; cx.fillRect(0,0,w,h); cx.drawImage(im,0,0,w,h);
+  const d=cv.toDataURL("image/jpeg",CONFIG.JPEG_QUALITY);
+  return {name:f.name||"camera.jpg",size:f.size,dataUrl:d,b64:d.split(",")[1],mime:"image/jpeg"};
+}
+async function addFiles(list){
+  clearError();
+  for(const f of Array.from(list)){
+    if(images.length>=CONFIG.MAX_IMAGES){ showError("Tối đa "+CONFIG.MAX_IMAGES+" ảnh."); break; }
+    try{ images.push(await processFile(f)); }catch(e){ showError(e.message); }
   }
-
-  // ============================================================
-  // SYSTEM PROMPT FOR GEMINI
-  // ============================================================
-  function buildSystemPrompt() {
-    const duration = durationSelect.value;
-    const aspect = aspectSelect.value;
-    const videoType = videoTypeSelect.value;
-    const idea = videoIdeaInput.value.trim() || 'Not specified. Infer a suitable idea from the image.';
-    const dialogueMode = state.dialogueMode;
-    const dialogueText = dialogueMode === 'on' ? (dialogueInput.value.trim() || 'No dialogue text provided.') : '';
-
-    let dialogueSection = '';
-    if (dialogueMode === 'on') {
-      dialogueSection = `
-DIALOGUE:
-- The video MUST include spoken dialogue.
-- Dialogue script: "${dialogueText}"
-- Language: Vietnamese (natural, conversational).
-- Ensure accurate lip synchronization, realistic breathing, natural pauses, and conversational delivery.
-- Do not add any dialogue beyond the provided script.`;
-    } else {
-      dialogueSection = `
-DIALOGUE:
-- The video MUST NOT include any spoken dialogue.
-- Only ambient sound or subtle realistic sound effects are allowed (e.g., fabric movement, footsteps, room tone, gentle background).
-- Do not generate speech, voiceover, or lip-sync speech.`;
-    }
-
-    return `You are a team of experts combined into one AI:
-1. Professional Image Analyst
-2. Commercial Director
-3. Fashion Advertising Director
-4. Cinematographer
-5. Veo 3 Prompt Engineer
-
-Your task is to analyze the provided reference image(s) and produce a complete, realistic Veo 3 video prompt.
-
-=== INPUT PARAMETERS ===
-- Video duration: ${duration} seconds
-- Aspect ratio: ${aspect}
-- Video type: ${videoType}
-- User idea: ${idea}
-${dialogueSection}
-
-=== ANALYSIS REQUIREMENTS ===
-Analyze the image(s) with extreme precision. Do NOT hallucinate. If something is not clearly visible, write "uncertain" or "not clearly visible".
-
-Cover these areas:
-
-SUBJECT:
-- number of people
-- apparent gender (or uncertain)
-- approximate age range
-- face (features, shape, expression)
-- hairstyle and hair color
-- skin appearance (tone, texture, visible features)
-- facial expression
-- body proportions
-- pose and posture
-- body orientation
-- gaze direction
-
-CLOTHING:
-- garment type
-- color(s)
-- material
-- texture
-- fit
-- neckline
-- sleeves
-- length
-- patterns
-- accessories
-- footwear
-
-PRODUCT (if any product is visible):
-- product type
-- shape
-- color(s)
-- material
-- visible details
-- logo / branding (only if actually visible)
-- packaging
-- position in frame
-- how it is held or worn
-- product-specific visual characteristics
-
-TEXT IN IMAGE:
-- Transcribe only text that is actually visible. Do not invent text. If no text, write "No text visible."
-
-ENVIRONMENT:
-- indoor / outdoor
-- location type
-- architecture
-- furniture
-- background
-- foreground
-- objects
-- depth
-
-LIGHTING:
-- light direction
-- softness
-- intensity
-- shadows
-- highlights
-- color temperature
-- natural / artificial
-
-CAMERA (estimate from the image):
-- shot size (close-up, medium, wide, etc.)
-- camera height
-- camera angle
-- perspective
-- framing
-- depth of field
-- cinematic look
-
-=== PRODUCT CONSISTENCY (CRITICAL) ===
-If a product is visible, the Veo prompt MUST instruct Veo to preserve:
-- product shape
-- product color
-- product material
-- pattern
-- logo
-- branding
-- visible details
-
-The product must NOT be altered: no color change, no design change, no added logos, no removed logos, no deformation, no substitution.
-
-=== HUMAN IDENTITY CONSISTENCY (CRITICAL) ===
-If a person is visible, the Veo prompt MUST include:
-"Preserve the subject's identity and recognizable facial characteristics from the reference image."
-Also instruct Veo to preserve:
-- face structure
-- facial proportions
-- hairstyle
-- skin appearance
-- body proportions
-- clothing
-- accessories
-
-Do not alter these.
-
-=== HAND / BODY QUALITY ===
-The Veo prompt MUST include constraints to reduce:
-- extra fingers
-- malformed hands
-- extra limbs
-- duplicated body parts
-- warped face
-- distorted anatomy
-- unnatural movement
-- impossible physics
-
-=== VIDEO STRUCTURE ===
-Create a storyboard for a ${duration}-second video.
-Divide the timeline into logical segments (e.g., for 8 seconds: 0–2s, 2–5s, 5–8s).
-Each segment must include:
-- subject action
-- camera movement
-- product interaction (if applicable)
-- facial expression
-- environment
-- lighting
-- transition
-
-Do not create unrealistic motion. Do not overload the subject with too many actions in a few seconds.
-
-=== CAMERA ===
-The final prompt must describe:
-- camera movement (push-in, pull-back, tracking, dolly, pan, tilt, handheld if appropriate)
-- framing
-- camera height
-- angle
-Prefer smooth, realistic camera movement.
-
-=== LIGHTING ===
-Base lighting direction on the reference image.
-- If outdoor: match sunlight / ambient light.
-- If indoor: match indoor lighting.
-Do not change lighting illogically.
-
-=== AUDIO ===
-If dialogue is ON: natural Vietnamese speech, accurate lip sync, realistic breathing, natural pauses.
-If dialogue is OFF: ambient sound / subtle sound effects only.
-
-=== FINAL VEO 3 PROMPT ===
-Output a complete, ready-to-copy English prompt for Veo 3.
-Do NOT return JSON in the final prompt section.
-The prompt must include clearly labeled sections:
-CHARACTER
-CLOTHING
-PRODUCT
-ENVIRONMENT
-ACTION
-CAMERA
-LIGHTING
-MOTION
-COMPOSITION
-AUDIO
-DIALOGUE
-TIMING
-REALISM
-CONSISTENCY
-NEGATIVE CONSTRAINTS
-
-The prompt must be self-contained, detailed, and cinematic.
-It must instruct Veo to preserve product and human identity.
-It must include negative constraints against anatomical errors.
-
-=== OUTPUT FORMAT ===
-Return your response using EXACTLY these three section markers (each on its own line):
-
----IMAGE ANALYSIS---
-(Your full image analysis here, plain text)
-
----STORYBOARD---
-(Your storyboard here, plain text, with timeline segments)
-
----FINAL VEO 3 PROMPT---
-(Your complete English Veo 3 prompt here, plain text, ready to copy)
-
-Do not add any extra section markers. Do not wrap the final prompt in JSON or code fences.`;
-  }
-
-  // ============================================================
-  // PARSE GEMINI RESPONSE
-  // ============================================================
-  function parseGeminiResponse(text) {
-    const result = {
-      analysis: '',
-      storyboard: '',
-      prompt: ''
-    };
-
-    const analysisMarker = '---IMAGE ANALYSIS---';
-    const storyboardMarker = '---STORYBOARD---';
-    const promptMarker = '---FINAL VEO 3 PROMPT---';
-
-    let remaining = text;
-
-    const idxAnalysis = remaining.indexOf(analysisMarker);
-    const idxStoryboard = remaining.indexOf(storyboardMarker);
-    const idxPrompt = remaining.indexOf(promptMarker);
-
-    if (idxAnalysis !== -1) {
-      const start = idxAnalysis + analysisMarker.length;
-      const end = idxStoryboard !== -1 ? idxStoryboard : (idxPrompt !== -1 ? idxPrompt : remaining.length);
-      result.analysis = remaining.slice(start, end).trim();
-    }
-
-    if (idxStoryboard !== -1) {
-      const start = idxStoryboard + storyboardMarker.length;
-      const end = idxPrompt !== -1 ? idxPrompt : remaining.length;
-      result.storyboard = remaining.slice(start, end).trim();
-    }
-
-    if (idxPrompt !== -1) {
-      result.prompt = remaining.slice(idxPrompt + promptMarker.length).trim();
-    }
-
-    // Fallback: if no markers found, put everything in prompt
-    if (!result.analysis && !result.storyboard && !result.prompt) {
-      result.prompt = text.trim();
-    } else {
-      // If analysis found but prompt empty, try to salvage
-      if (!result.prompt && result.analysis) {
-        result.prompt = result.analysis;
-        result.analysis = '';
-      }
-    }
-
-    return result;
-  }
-
-  // ============================================================
-  // ANALYZE FLOW
-  // ============================================================
-  async function analyze() {
-    if (state.isAnalyzing) return;
-
-    // Validate API key
-    const apiKey = apiKeyInput.value.trim();
-    if (!apiKey) {
-      setStatus(analyzeStatusBox, 'err', '❌ Please enter your Gemini API key.');
-      showToast('Please enter your Gemini API key.', 'err');
-      return;
-    }
-
-    // Validate images
-    if (state.images.length === 0) {
-      setStatus(analyzeStatusBox, 'err', '❌ Please upload at least one image before analyzing.');
-      showToast('Please upload at least one image.', 'err');
-      return;
-    }
-
-    state.isAnalyzing = true;
-    btnAnalyze.disabled = true;
-    btnRegenerate.disabled = true;
-    clearStatus(analyzeStatusBox);
-
-    const model = getCurrentModel();
-
-    try {
-      // Build parts
-      showLoading('Preparing images...');
-      const parts = [];
-
-      // Add image parts first
-      for (const img of state.images) {
-        parts.push({
-          inlineData: {
-            mimeType: img.mimeType,
-            data: img.base64
-          }
-        });
-      }
-
-      // Add text prompt
-      parts.push({ text: buildSystemPrompt() });
-
-      showLoading('Gemini analyzing (' + model + ')...');
-
-      const rawText = await callGemini(parts, model);
-
-      showLoading('Generating Veo prompt...');
-
-      const parsed = parseGeminiResponse(rawText);
-
-      // Display results
-      state.lastAnalysis = parsed.analysis;
-      state.lastStoryboard = parsed.storyboard;
-      state.lastPrompt = parsed.prompt;
-
-      resultAnalysis.textContent = parsed.analysis || 'No analysis returned.';
-      resultAnalysis.classList.toggle('empty', !parsed.analysis);
-
-      resultStoryboard.textContent = parsed.storyboard || 'No storyboard returned.';
-      resultStoryboard.classList.toggle('empty', !parsed.storyboard);
-
-      resultPrompt.value = parsed.prompt || 'No prompt returned.';
-
-      resultSection.classList.add('show');
-      storyboardSection.classList.add('show');
-      promptSection.classList.add('show');
-
-      setStatus(analyzeStatusBox, 'ok',
-        '✅ Done. Model: <code>' + model + '</code> · ' + state.images.length + ' image(s) analyzed.'
-      );
-
-      // Scroll to results
-      setTimeout(() => {
-        resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 200);
-
-    } catch (err) {
-      setStatus(analyzeStatusBox, 'err',
-        '❌ ' + escapeHtml(err.message)
-      );
-      showToast('Analysis failed. See error below.', 'err');
-    } finally {
-      state.isAnalyzing = false;
-      btnAnalyze.disabled = false;
-      btnRegenerate.disabled = false;
-      hideLoading();
-    }
-  }
-
-  // ============================================================
-  // REGENERATE
-  // ============================================================
-  async function regenerate() {
-    if (state.isAnalyzing) return;
-    if (state.images.length === 0) {
-      showToast('No images to regenerate from. Upload images first.', 'err');
-      return;
-    }
-    // Simply run analyze again with fresh API call
-    await analyze();
-  }
-
-  // ============================================================
-  // COPY PROMPT
-  // ============================================================
-  async function copyPrompt() {
-    const text = resultPrompt.value;
-    if (!text || text === 'No prompt returned.') {
-      showToast('No prompt to copy.', 'err');
-      return;
-    }
-
-    // Try Clipboard API first
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-        await navigator.clipboard.writeText(text);
-        showToast('✅ Prompt copied to clipboard.', 'ok');
-        return;
-      } catch (e) {
-        // Fall through to fallback
-      }
-    }
-
-    // Fallback: select + execCommand
-    try {
-      resultPrompt.focus();
-      resultPrompt.select();
-      resultPrompt.setSelectionRange(0, text.length);
-      const ok = document.execCommand('copy');
-      // Deselect
-      resultPrompt.setSelectionRange(0, 0);
-      resultPrompt.blur();
-      if (ok) {
-        showToast('✅ Prompt copied (fallback method).', 'ok');
-      } else {
-        showToast('Copy failed. Please select the text manually.', 'err');
-      }
-    } catch (e) {
-      showToast('Copy failed: ' + e.message + '. Please select the text manually.', 'err');
-    }
-  }
-
-  // ============================================================
-  // DIALOGUE TOGGLE
-  // ============================================================
-  function setDialogueMode(mode) {
-    state.dialogueMode = mode;
-    if (mode === 'on') {
-      btnDialogueOn.classList.add('active');
-      btnDialogueOff.classList.remove('active');
-      dialogueWrapper.style.display = 'block';
-    } else {
-      btnDialogueOff.classList.add('active');
-      btnDialogueOn.classList.remove('active');
-      dialogueWrapper.style.display = 'none';
-    }
-  }
-
-  // ============================================================
-  // EVENT LISTENERS
-  // ============================================================
-  // Paste API key
-  btnPasteKey.addEventListener('click', async () => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        const text = await navigator.clipboard.readText();
-        if (text) {
-          apiKeyInput.value = text.trim();
-          showToast('Key pasted from clipboard.', 'ok');
-        } else {
-          showToast('Clipboard is empty.', 'err');
-        }
-      } else {
-        showToast('Clipboard read not available. Please paste manually.', 'err');
-      }
-    } catch (e) {
-      showToast('Could not read clipboard: ' + e.message, 'err');
-    }
+  renderThumbs();
+}
+function renderThumbs(){
+  const box=$("thumbs"); box.innerHTML="";
+  images.forEach((im,i)=>{
+    const d=document.createElement("div"); d.className="th";
+    const g=document.createElement("img"); g.src=im.dataUrl; g.alt=im.name;
+    const t=document.createElement("div"); t.textContent=im.name+" · "+fmtSize(im.size);
+    const b=document.createElement("button"); b.textContent="Xóa"; b.onclick=()=>{images.splice(i,1);renderThumbs();};
+    d.append(g,t,b); box.appendChild(d);
   });
+}
 
-  // Save / Clear key
-  btnSaveKey.addEventListener('click', saveApiKeyToStorage);
-  btnClearKey.addEventListener('click', clearApiKeyFromStorage);
+/* ===== PROMPT GENERATION ===== */
+const SYSTEM = `You are a Professional AI Image Analyst + TikTok Commercial Director + Cinematographer + Veo 3 Prompt Engineer.
+Your FINAL goal is NOT to describe the image. It is to turn the reference image(s) + the user's brief into Veo 3 prompts that produce high-converting, realistic TikTok / short-form ad videos.
+Priorities: identity consistency, product consistency, realistic human motion, natural hand movement, natural facial expression, natural handheld/phone-style camera, realistic lighting and physics, clean composition, commercial quality.
+TIKTOK AD CRAFT: structure every video as HOOK (first 0-2s, must stop the scroll) -> PRODUCT/BENEFIT DEMO -> PROOF or EMOTION -> CTA. Native TikTok feel (vertical, authentic, not over-produced) unless the video type says cinematic. Show the product clearly and early; keep the product label/logo facing camera when handled.
+VEO 3 CRAFT: Veo 3 clips are at most 8 seconds. If the requested duration is over 8s, split into consecutive clips of 8s or less; each clip must be a fully self-contained prompt that repeats the full character, product and setting description (Veo has no memory between clips) and states how it continues the previous clip. Write each prompt as flowing, specific cinematic paragraphs: subject, appearance, action, setting, camera and lens, lighting, mood/style, audio. Use positive phrasing for what should happen. Keep actions simple (one main action per 2-3 seconds).
+AUDIO RULES: follow the user's dialogue mode exactly. Dialogue is written as: The woman says in [language, accent, tone]: "..." . Keep spoken words within about 2.5 words per second of the clip. Always describe natural lip-sync for on-camera speech. For voice-over, the speaker is off-screen and the on-screen person does not move their lips. For no dialogue, explicitly state "No speech, no voice-over" and use only ambient sound, SFX and generic music direction. Never name copyrighted songs.
+STRICT: only describe what is visible. Never invent logos, brand text or product claims not given by the user or visible. If unsure write "uncertain" or omit. Never change the subject's face, body, clothing or the product unless asked. Do not identify real people by name. Do not make medical or exaggerated guaranteed-result claims in dialogue.
+Write sections A and B in Vietnamese (keep technical terms in English). Write section C fully in English, except dialogue lines which use the requested spoken language.`;
 
-  // Test API
-  btnTestApi.addEventListener('click', testApi);
-
-  // Model change
-  modelSelect.addEventListener('change', () => {
-    updateFooterModel();
-    // Clear previous status when model changes
-    clearStatus(apiStatusBox);
-    showToast('Model switched to ' + getCurrentModel(), 'ok');
-  });
-
-  // Image picker
-  btnPickImages.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', async (e) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      await addImages(files);
-    }
-    // Reset input so the same file can be selected again
-    fileInput.value = '';
-  });
-
-  // Dialogue toggles
-  btnDialogueOff.addEventListener('click', () => setDialogueMode('off'));
-  btnDialogueOn.addEventListener('click', () => setDialogueMode('on'));
-
-  // Analyze
-  btnAnalyze.addEventListener('click', analyze);
-
-  // Regenerate
-  btnRegenerate.addEventListener('click', regenerate);
-
-  // Copy
-  btnCopyPrompt.addEventListener('click', copyPrompt);
-
-  // ============================================================
-  // INIT
-  // ============================================================
-  function init() {
-    loadApiKey();
-    updateFooterModel();
-    setDialogueMode('off');
-    renderImages();
-
-    // Warn if running from file://
-    if (window.location.protocol === 'file:') {
-      setTimeout(() => {
-        setStatus(apiStatusBox, 'err',
-          '⚠️ <strong>You are running from file://</strong><br>' +
-          'Gemini API requests may be blocked by CORS. ' +
-          'For reliable operation, serve this file over HTTPS (e.g., GitHub Pages, Netlify, or a local HTTPS server).'
-        );
-      }, 500);
-    }
+function buildUserText(tweak){
+  const vt=$("vtype").value==="Custom"?"Custom: "+($("custom").value.trim()||"(not specified)"):$("vtype").value;
+  const dm=radio("dm"), md=$("mode").value, n=$("nvar").value, dur=$("dur").value, ar=$("ar").value;
+  const modeTxt={FAST:"FAST: concise, about 120-180 words per clip.",STANDARD:"STANDARD: detailed, about 250-400 words per clip.",ULTRA:"ULTRA: extremely detailed, 500-800 words per clip, maximum control of character, product, camera, physics."}[md];
+  let dlg;
+  if(dm==="Không thoại") dlg="NO DIALOGUE and NO VOICE-OVER. Audio = ambient sound, SFX and music direction only.";
+  else{
+    const own=$("script").value.trim();
+    const kind=dm==="Voice-over"?"VOICE-OVER (off-screen narrator, on-screen person's lips do not move)":dm==="Có thoại"?"ON-CAMERA DIALOGUE (character speaks to camera with accurate lip-sync)":"AUTO (choose the best of on-camera dialogue, voice-over, or none for this ad and state your choice)";
+    dlg=`${kind}. Language: ${$("lang").value}. Voice: ${$("voice").value}. Accent: ${$("accent").value}. Tone: ${$("tone").value}. `+(own?`Use this script VERBATIM (trim only if it cannot fit the duration, and say so): "${own}"`:"Write the script yourself, natural and conversational like a real TikTok creator, short sentences.");
   }
+  return `Reference images: ${images.length} (in order). Declared image type: ${radio("it")} (if "Auto Detect", determine and state it).
+Product name: ${$("pname").value.trim()||"(not given - use only what is visible)"}
+Key selling points: ${$("usp").value.trim()||"(not given - do not invent claims)"}
+Video type: ${vt}. Hook style: ${$("hook").value}. CTA: ${$("cta").value}.
+User's idea: ${$("idea").value.trim()||"(none - propose the strongest idea for this video type)"}
+Total duration: ${dur}. Aspect ratio: ${ar}. Prompt mode: ${modeTxt}
+Dialogue mode: ${dlg}
+On-screen text: ${$("notext").checked?"NONE. State 'no subtitles, no captions, no text overlays, no watermarks' in the prompt.":"Allowed only if essential; keep to a few short words."}
+Number of distinct variants (different hook/angle, same character and product): ${n}
+${tweak?`\nUSER REVISION REQUEST (apply it): ${tweak}\nPrevious prompt for reference:\n${lastPrompt.slice(0,6000)}\n`:""}
+Return EXACTLY three sections, each starting with its marker on its own line:
+===ANALYSIS===
+Detailed analysis with sub-headings: IMAGE TYPE, SUBJECT (apparent gender, estimated age, face, hair, expression, build, posture, body/face/eye direction), CLOTHING, PRODUCT (type, shape, color, size, logo, packaging, visible text, position, how held; "No product visible" if none), ENVIRONMENT, LIGHTING, CAMERA, COMPOSITION, POSE (head, shoulders, arms, hands, torso, hips, legs, weight). Mark unclear things "uncertain".
+===STORYBOARD===
+Time-coded shots over ${dur} following HOOK -> DEMO -> PROOF -> CTA. Each shot: camera, subject action, facial expression, body movement, product interaction, environment, lighting, transition, and the spoken line if any.
+===PROMPT===
+${n} variant(s). Separate variants with a line containing only ---VARIANT---. Start each variant with a one-line title (Hook angle). Each variant contains one or more clips (CLIP 1, CLIP 2...) of at most 8 seconds, each a complete copy-ready Veo 3 prompt covering: character, appearance, clothing, environment, action, facial expression, camera, lens/look, lighting, motion, composition, product, audio (ambient, SFX, music direction, dialogue/voice-over per the dialogue mode), timing, visual quality, a CHARACTER CONSISTENCY paragraph (must include "Preserve the subject's identity and appearance from the reference image." and lock face, hairstyle, body proportions, skin tone, clothing, accessories, product shape, label and logo), then a line "NEGATIVE PROMPT:" listing image-specific and generic errors (distorted face, identity change, extra fingers, extra limbs, malformed hands, warped body, duplicated person, floating objects, unnatural motion, flickering, clothing changes, product deformation, wrong logos, text artifacts, subtitles, sudden camera jumps, unnatural physics). State aspect ratio ${ar}. Nothing after the last variant.`;
+}
+function parseOutput(t){
+  const g=(a,b)=>{const i=t.indexOf(a); if(i<0)return ""; const s=i+a.length; const j=b?t.indexOf(b,s):-1; return t.slice(s,j<0?undefined:j).trim();};
+  const C=g("===PROMPT===",null);
+  return C?{A:g("===ANALYSIS===","===STORYBOARD==="),B:g("===STORYBOARD===","===PROMPT==="),C}:{A:t,B:"",C:t};
+}
 
-  init();
+/* ===== UI: FLOW ===== */
+function startLoading(){
+  const msgs=["Analyzing image…","Generating storyboard…","Building Veo 3 prompt…"]; let i=0;
+  $("loading").style.display="block"; $("loadMsg").textContent=msgs[0];
+  loadTimer=setInterval(()=>{ if(!$("loading").dataset.retry){ i=Math.min(i+1,2); $("loadMsg").textContent=msgs[i]; } },7000);
+  $("analyze").disabled=$("regenBtn").disabled=true;
+}
+function stopLoading(){ clearInterval(loadTimer); $("loading").style.display="none"; delete $("loading").dataset.retry; $("analyze").disabled=$("regenBtn").disabled=false; }
+function renderPrompts(text){
+  const box=$("outC"); box.innerHTML="";
+  text.split(/^\s*-{3}\s*VARIANT\s*-{3}\s*$/im).map(s=>s.trim()).filter(Boolean).forEach((v,i,arr)=>{
+    if(arr.length>1){ const h=document.createElement("div"); h.className="vh"; h.textContent="Phiên bản "+(i+1); box.appendChild(h); }
+    const ta=document.createElement("textarea"); ta.className="prompt"; ta.readOnly=true; ta.value=v;
+    const r=document.createElement("div"); r.className="row"; r.style.cssText="margin:8px 0 6px";
+    const c=document.createElement("button"); c.textContent="COPY PROMPT"; c.onclick=()=>copyText(ta,c,"COPY PROMPT");
+    const e=document.createElement("button"); e.className="alt"; e.textContent="EDIT PROMPT";
+    e.onclick=()=>{ ta.readOnly=!ta.readOnly; e.textContent=ta.readOnly?"EDIT PROMPT":"DONE EDITING"; if(!ta.readOnly) ta.focus(); };
+    r.append(c,e); box.append(ta,r);
+  });
+}
+async function run(useTweak){
+  clearError();
+  const key=$("apiKey").value.trim()||lsGet(CONFIG.KEY_STORE);
+  if(!key) return showError("Chưa có API Key. Nhập key rồi bấm SAVE KEY.");
+  if(!images.length) return showError("Hãy upload ít nhất 1 ảnh.");
+  if($("vtype").value==="Custom"&&!$("custom").value.trim()) return showError("Hãy mô tả video ở ô Custom.");
+  const tweak=useTweak?$("tweak").value.trim():"";
+  const parts=images.map(im=>({inline_data:{mime_type:im.mime,data:im.b64}})); parts.push({text:buildUserText(tweak)});
+  startLoading();
+  try{
+    const out=await callGemini(key,parts,SYSTEM,m=>{ $("loading").dataset.retry="1"; $("loadMsg").textContent=m; });
+    const r=parseOutput(out); lastPrompt=r.C;
+    $("outA").textContent=r.A||"(trống)"; $("outB").textContent=r.B||"(trống)"; renderPrompts(r.C);
+    $("results").style.display="block"; setApi("ok","● API Connected"); $("results").scrollIntoView({behavior:"smooth"});
+  }catch(e){ showError(e.message); if(e.fatal&&/API Key/i.test(e.message)) setApi("bad","● API Error"); }
+  finally{ stopLoading(); }
+}
+async function copyText(ta,btn,label){
+  const txt=ta.value;
+  try{ await navigator.clipboard.writeText(txt); }
+  catch(e){ const was=ta.readOnly; ta.readOnly=false; ta.focus(); ta.setSelectionRange(0,txt.length);
+    try{document.execCommand("copy");}catch(_){showError("Không copy được. Chạm giữ vào prompt rồi chọn Copy.");} ta.readOnly=was; ta.blur(); }
+  btn.textContent="COPIED ✓"; setTimeout(()=>btn.textContent=label,1600);
+}
 
+/* ===== UI: EVENTS ===== */
+$("saveKey").onclick=async()=>{
+  clearError(); const k=$("apiKey").value.trim(); if(!k) return showError("Hãy nhập API Key.");
+  const ok=lsSet(CONFIG.KEY_STORE,k)&lsSet(CONFIG.MODEL_STORE,$("model").value.trim());
+  if(!ok) showError("Không lưu được localStorage (chế độ riêng tư?). Key chỉ dùng cho phiên này.");
+  setApi("idle","● Đang kiểm tra…"); await checkKey(k);
+};
+$("clearKey").onclick=()=>{ lsDel(CONFIG.KEY_STORE); $("apiKey").value=""; setApi("idle","● Chưa có API Key"); clearError(); };
+$("drop").onclick=$("addBtn").onclick=()=>$("fileIn").click();
+$("camBtn").onclick=()=>$("camIn").click();
+$("fileIn").onchange=e=>{addFiles(e.target.files);e.target.value="";};
+$("camIn").onchange=e=>{addFiles(e.target.files);e.target.value="";};
+$("vtype").onchange=()=>$("custom").classList.toggle("hidden",$("vtype").value!=="Custom");
+$("custom").classList.add("hidden");
+$("dlgMode").onchange=()=>{ $("dlgBox").style.display=radio("dm")==="Không thoại"?"none":"block"; };
+$("analyze").onclick=()=>run(false);
+$("regenBtn").onclick=()=>run(true);
+$("copyAll").onclick=()=>{ const t=document.createElement("textarea"); t.style.cssText="position:fixed;left:0;top:0;opacity:0;height:1px;width:1px"; t.value=Array.from(document.querySelectorAll("#outC textarea")).map(x=>x.value).join("\n\n---\n\n"); document.body.appendChild(t); copyText(t,$("copyAll"),"COPY ALL"); setTimeout(()=>t.remove(),2000); };
+$("copyAll").addEventListener("click",()=>{});
+
+/* ===== INIT ===== */
+(function(){
+  $("model").value=lsGet(CONFIG.MODEL_STORE)||CONFIG.MODEL;
+  const k=lsGet(CONFIG.KEY_STORE);
+  if(k){ $("apiKey").value=k; setApi("idle","● Đã lưu key — đang kiểm tra…"); checkKey(k); }
 })();
 </script>
 </body>
